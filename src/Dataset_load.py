@@ -4,13 +4,9 @@ import pandas as pd
 # 1. LOAD DATASETS
 # --------------------------------
 
-generation = pd.read_csv(
-    "D:/2nd Year/ML Solor Sense/Datasets/Plant_1_Generation_Data.csv"
-)
+generation = pd.read_csv( "D:/2nd Year/ML Solor Sense/Datasets/Plant_1_Generation_Data.csv")
 
-weather = pd.read_csv(
-    "D:/2nd Year/ML Solor Sense/Datasets/Plant_1_Weather_Sensor_Data.csv"
-)
+weather = pd.read_csv("D:/2nd Year/ML Solor Sense/Datasets/Plant_1_Weather_Sensor_Data.csv")
 
 
 # --------------------------------
