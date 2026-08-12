@@ -1,5 +1,5 @@
 # ============================================================
-# SOLARSENSE - DATA UNDERSTANDING / EDA
+# SOLARSENSE - DATA UNDERSTANDING
 # ============================================================
 
 import pandas as pd
@@ -11,7 +11,7 @@ import pandas as pd
 
 file_path = (
     "D:/2nd Year/ML Solor Sense/Datasets/"
-    "Plant_1_Merged_Data.csv"
+    "SolarSense_Day_Night_Balanced_Raw.csv"
 )
 
 df = pd.read_csv(file_path)
