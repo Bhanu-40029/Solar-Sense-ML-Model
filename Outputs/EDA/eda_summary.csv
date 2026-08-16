@@ -1,0 +1,15 @@
+Metric,Value
+Total Rows,44060
+Total Columns,13
+Missing Values,0
+Duplicate Rows,0
+Number of Inverters,22
+Number of Plants,1
+Number of Weather Sensors,1
+Start Date,2020-05-15 00:00:00
+End Date,2020-06-09 02:00:00
+Average AC Power,283.95737611865763
+Maximum AC Power,1405.3
+Minimum AC Power,0.0
+Average Irradiation,0.21630132955961529
+Maximum Irradiation,1.151102274
