@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Prediction — Solar Sense{% endblock %}
+{% block content %}
+
+<div class="section-head">
+  <div>
+    <p class="eyebrow">Run Prediction</p>
+    <h2>Predict AC power for an observation</h2>
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div class="card">
+    {% if error %}<div class="badge badge-abnormal" style="margin-bottom:16px;">{{ error }}</div>{% endif %}
+    <form method="POST" class="form-grid">
+      <div class="field">
+        <label for="inverter_id">Inverter ID</label>
+        <select name="inverter_id" id="inverter_id" required>
+          <option value="" disabled {{ 'selected' if not result }}>Select inverter</option>
+          {% for inv in inverter_ids %}
+          <option value="{{ inv }}" {{ 'selected' if result and result.inverter_id == inv }}>{{ inv }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="date_time">Date &amp; Time</label>
+        <input type="datetime-local" name="date_time" id="date_time" required value="{{ result.date_time if result else '' }}">
+      </div>
+      <div class="field">
+        <label for="irradiation">Irradiation (0&ndash;1.2)</label>
+        <input type="number" step="0.0001" min="0" max="1.2" name="irradiation" id="irradiation" required value="{{ result.irradiation if result else '' }}">
+      </div>
+      <div class="field">
+        <label for="ambient_temperature">Ambient Temperature (&deg;C)</label>
+        <input type="number" step="0.01" name="ambient_temperature" id="ambient_temperature" required value="{{ result.ambient_temperature if result else '' }}">
+      </div>
+      <div class="field">
+        <label for="module_temperature">Module Temperature (&deg;C)</label>
+        <input type="number" step="0.01" name="module_temperature" id="module_temperature" required value="{{ result.module_temperature if result else '' }}">
+      </div>
+      <div class="field">
+        <label for="actual_ac_power">Actual AC Power &mdash; optional, for evaluation</label>
+        <input type="number" step="0.01" name="actual_ac_power" id="actual_ac_power" value="{{ result.actual_ac_power if result and result.actual_ac_power is defined else '' }}">
+      </div>
+      <div class="form-actions" style="grid-column: 1 / -1;">
+        <button type="submit" class="btn btn-gold">Predict AC Power</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" style="min-height: 320px;">
+    {% if not result %}
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height: 260px; text-align:center;">
+      <p class="muted">Fill in the form to generate a prediction. The model uses irradiation, temperature, inverter and time-of-day &mdash; never actual AC_POWER &mdash; as inputs.</p>
+    </div>
+    {% else %}
+    <p class="eyebrow">Result</p>
+    <div class="kpi-card" style="margin-bottom: 18px;">
+      <span class="kpi-label">Predicted AC Power</span>
+      <span class="kpi-value gold" style="font-size: 2.2rem;">{{ result.predicted_ac_power }}</span>
+    </div>
+
+    {% if result.actual_ac_power is defined %}
+    <div class="grid grid-2" style="margin-bottom: 12px;">
+      <div class="card-flat kpi-card"><span class="kpi-label">Actual AC Power</span><span class="kpi-value">{{ result.actual_ac_power }}</span></div>
+      <div class="card-flat kpi-card"><span class="kpi-label">Absolute Error</span><span class="kpi-value">{{ result.abs_error }}</span></div>
+      <div class="card-flat kpi-card"><span class="kpi-label">Relative Error</span><span class="kpi-value">{{ result.relative_error if result.relative_error is not none else 'N/A' }}{% if result.relative_error is not none %}%{% endif %}</span></div>
+      <div class="card-flat kpi-card"><span class="kpi-label">Status</span><span class="badge {{ 'badge-normal' if result.status == 'NORMAL' else 'badge-abnormal' }}">{{ result.status }}</span></div>
+    </div>
+    {% else %}
+    <p class="muted">Add an actual AC power value to see prediction error and NORMAL/ABNORMAL status.</p>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

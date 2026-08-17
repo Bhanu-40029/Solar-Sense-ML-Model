@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Solar Sense — AI-Powered Solar Power Prediction{% endblock %}
+{% block content %}
+
+<section class="hero">
+  <div>
+    <p class="eyebrow">Solar Energy Intelligence</p>
+    <h1>Predict, monitor, and trust<br>your plant&rsquo;s <span class="accent">AC power</span>.</h1>
+    <p class="hero-lede">
+      Solar Sense learns the relationship between irradiation, temperature and time of day to predict
+      expected AC power output, then compares it against actual generation to flag inverters that are
+      underperforming, spiking or dropping out &mdash; before it costs you yield.
+    </p>
+    <div class="hero-cta">
+      <a href="{{ url_for('dashboard') }}" class="btn btn-gold">View Dashboard</a>
+      <a href="{{ url_for('prediction') }}" class="btn btn-ghost">Run Prediction</a>
+      <a href="{{ url_for('visualization') }}" class="btn btn-ghost">Explore Visualization</a>
+    </div>
+  </div>
+  <div class="sun-visual" aria-hidden="true">
+    <div class="sun-ring r3"></div>
+    <div class="sun-ring r2"></div>
+    <div class="sun-ring r1"></div>
+    <div class="sun-core"></div>
+    <div class="sun-node" style="top: 10%; left: 50%;"></div>
+    <div class="sun-node" style="top: 50%; left: 92%; background: var(--gold);"></div>
+    <div class="sun-node" style="top: 82%; left: 30%;"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">How it works</p>
+      <h2>From raw sensor data to a NORMAL / ABNORMAL verdict</h2>
+    </div>
+  </div>
+  <div class="workflow">
+    <div class="workflow-step"><b>Dataset</b>DC/AC power, irradiation, temperature, yield</div>
+    <div class="workflow-arrow">&rarr;</div>
+    <div class="workflow-step"><b>Preprocessing</b>Cleaning &amp; validation</div>
+    <div class="workflow-arrow">&rarr;</div>
+    <div class="workflow-step"><b>Feature Engineering</b>Temporal + inverter context</div>
+    <div class="workflow-arrow">&rarr;</div>
+    <div class="workflow-step"><b>ML Model</b>Regression on AC_POWER</div>
+    <div class="workflow-arrow">&rarr;</div>
+    <div class="workflow-step"><b>Prediction</b>PREDICTED_AC_POWER</div>
+    <div class="workflow-arrow">&rarr;</div>
+    <div class="workflow-step"><b>Error Analysis</b>ABS_ERROR vs threshold</div>
+    <div class="workflow-arrow">&rarr;</div>
+    <div class="workflow-step"><b>Status</b>NORMAL / ABNORMAL</div>
+    <div class="workflow-arrow">&rarr;</div>
+    <div class="workflow-step"><b>Report</b>Plant &amp; inverter analytics</div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Capabilities</p>
+      <h2>Built for plant-level and inverter-level insight</h2>
+    </div>
+  </div>
+  <div class="grid grid-3">
+    <div class="card feature-card">
+      <div class="feature-icon">&#9737;</div>
+      <h3>Solar Power Prediction</h3>
+      <p>A regression model trained on irradiation, temperature and time-of-day features predicts expected AC power for any inverter.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="feature-icon">&#9888;</div>
+      <h3>Anomaly Detection</h3>
+      <p>Prediction error is compared against a validation-derived reliability threshold to flag ABNORMAL observations.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="feature-icon">&#9881;</div>
+      <h3>Inverter Monitoring</h3>
+      <p>Per-inverter health, average error and abnormal rate surface which units need attention first.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="feature-icon">&#128200;</div>
+      <h3>Interactive Analytics</h3>
+      <p>Actual vs predicted power, error timelines, irradiation relationships and correlation heatmaps.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="feature-icon">&#9878;</div>
+      <h3>Model Comparison</h3>
+      <p>Linear Regression, Random Forest, Gradient Boosting and Extra Trees compared on MAE, RMSE and R&sup2;.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="feature-icon">&#128196;</div>
+      <h3>Automated Reports</h3>
+      <p>Dataset, model, prediction, anomaly and inverter performance reports, generated from live results.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+    <div>
+      <h3 style="margin-bottom:6px;">Target / Class Label: <span class="mono" style="color:var(--gold);">AC_POWER</span></h3>
+      <p style="margin:0;">Every prediction, error metric and status label in this application traces back to this one variable.</p>
+    </div>
+    <a href="{{ url_for('about') }}" class="btn btn-ghost">Read the methodology</a>
+  </div>
+</section>
+
+{% endblock %}

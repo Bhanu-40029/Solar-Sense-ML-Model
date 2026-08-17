@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }} — Solar Sense{% endblock %}
+{% block content %}
+<div class="section" style="text-align:center; padding: 60px 0;">
+  <p class="eyebrow">Error {{ code }}</p>
+  <h1>{{ message }}</h1>
+  <a class="btn btn-gold" href="{{ url_for('home') }}">Return home</a>
+</div>
+{% endblock %}

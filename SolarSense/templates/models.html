@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}ML Models — Solar Sense{% endblock %}
+{% block content %}
+
+<div class="section-head">
+  <div>
+    <p class="eyebrow">Machine Learning</p>
+    <h2>Model comparison &amp; reliability</h2>
+  </div>
+</div>
+
+{% if not config %}
+<div class="card"><p>No trained model found. Run <code>python model/train_model.py</code> and reload this page.</p></div>
+{% else %}
+
+<section class="section">
+  <div class="grid grid-3">
+    <div class="card kpi-card"><span class="kpi-label">Target / Class Label</span><span class="kpi-value gold mono">{{ config.target }}</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Prediction Type</span><span class="kpi-value" style="font-size:1.1rem;">AC Power Regression</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Best Performing Model</span><span class="kpi-value green" style="font-size:1.1rem;">{{ config.primary_best_model_name }}</span></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Primary model comparison</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>R&sup2;</th><th>Training Time (s)</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for name, m in config.primary_results.items() %}
+        <tr>
+          <td>{{ name }}</td>
+          <td class="mono">{{ "%.3f"|format(m.MAE) }}</td>
+          <td class="mono">{{ "%.3f"|format(m.RMSE) }}</td>
+          <td class="mono">{{ "%.4f"|format(m.R2) }}</td>
+          <td class="mono">{{ m.TRAINING_TIME_SEC }}</td>
+          <td>{% if name == config.primary_best_model_name %}<span class="badge badge-normal">Best</span>{% else %}<span class="pill">Trained</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <h2>Benchmark model comparison</h2>
+      <p class="muted" style="margin-top:-8px;">Adds operational variables (DC_POWER, DAILY_YIELD, TOTAL_YIELD) to the primary feature set, for comparison only &mdash; not used for live prediction, since it depends on values not always available ahead of generation.</p>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>R&sup2;</th><th>Training Time (s)</th></tr></thead>
+      <tbody>
+        {% for name, m in config.benchmark_results.items() %}
+        <tr>
+          <td>{{ name }}</td>
+          <td class="mono">{{ "%.3f"|format(m.MAE) }}</td>
+          <td class="mono">{{ "%.3f"|format(m.RMSE) }}</td>
+          <td class="mono">{{ "%.4f"|format(m.R2) }}</td>
+          <td class="mono">{{ m.TRAINING_TIME_SEC }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted" style="margin-top:10px;">
+    Benchmark best: <b>{{ config.benchmark_best_model_name }}</b>
+    (RMSE {{ "%.3f"|format(config.benchmark_results[config.benchmark_best_model_name].RMSE) }})
+    vs. primary best RMSE {{ "%.3f"|format(config.primary_results[config.primary_best_model_name].RMSE) }}.
+    Whether operational variables meaningfully improve accuracy depends on the metrics above &mdash; compare them directly rather than assuming either model wins.
+  </p>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Feature importance</h2></div>
+  <div class="card">
+    <div class="chart-box tall"><canvas id="importanceChart"></canvas></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Model reliability</h2></div>
+  <div class="grid grid-3">
+    <div class="card kpi-card"><span class="kpi-label">Reliability Threshold</span><span class="kpi-value gold">{{ "%.2f"|format(config.reliability_threshold) }}</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Validation Normal %</span><span class="kpi-value green">{{ "%.2f"|format(config.validation_normal_pct) }}%</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Threshold Method</span><span class="kpi-value" style="font-size:0.95rem;">{{ config.reliability_percentile }}th percentile</span></div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <p style="margin:0;">{{ config.reliability_method }}. A prediction is marked <b>ABNORMAL</b> when its absolute deviation from actual AC_POWER exceeds this threshold; otherwise it is marked <b>NORMAL</b>. The same threshold is used consistently across the dashboard, prediction page and reports.</p>
+  </div>
+</section>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async function () {
+  const canvas = document.getElementById("importanceChart");
+  if (!canvas) return;
+  const data = await SolarSense.getJSON("/api/feature-importance");
+  if (!data.available) {
+    canvas.parentElement.innerHTML = '<p class="muted" style="padding:40px; text-align:center;">Feature importance not available for the selected model.</p>';
+    return;
+  }
+  new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: data.features,
+      datasets: [{ label: "Importance", data: data.importance, backgroundColor: SolarSense.chartColors.gold }],
+    },
+    options: Object.assign(SolarSense.baseChartOptions(), { indexAxis: "y" }),
+  });
+})();
+</script>
+{% endblock %}

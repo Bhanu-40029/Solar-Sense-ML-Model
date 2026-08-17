@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Reports — Solar Sense{% endblock %}
+{% block content %}
+
+<div class="section-head">
+  <div>
+    <p class="eyebrow">Reports</p>
+    <h2>Dataset, model &amp; performance reports</h2>
+  </div>
+</div>
+
+<div class="grid grid-2">
+
+  <div class="card">
+    <h3>Dataset Report</h3>
+    <p>Overview statistics, feature inventory and data quality checks computed from the raw dataset.</p>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('dataset') }}">View Dataset Page</a>
+  </div>
+
+  <div class="card">
+    <h3>EDA Report</h3>
+    <p>Distributions, correlation heatmap, irradiation and temperature relationships.</p>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('visualization') }}">View Visualization Page</a>
+  </div>
+
+  <div class="card">
+    <h3>Model Report</h3>
+    {% if config %}
+    <p>Best model: <b>{{ config.primary_best_model_name }}</b> &middot; R&sup2; {{ "%.4f"|format(config.primary_results[config.primary_best_model_name].R2) }} &middot; RMSE {{ "%.2f"|format(config.primary_results[config.primary_best_model_name].RMSE) }}</p>
+    {% else %}
+    <p class="muted">Model not trained.</p>
+    {% endif %}
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('models') }}">View Models Page</a>
+  </div>
+
+  <div class="card">
+    <h3>Prediction Report</h3>
+    <p>Run individual predictions and evaluate them against actual AC power on the Prediction page.</p>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('prediction') }}">Run a Prediction</a>
+  </div>
+
+  <div class="card">
+    <h3>Anomaly Report</h3>
+    <p>Full table of ABNORMAL observations, sorted by absolute error, with filtering and pagination.</p>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('dashboard') }}#anomalies">View on Dashboard</a>
+  </div>
+
+  <div class="card">
+    <h3>Inverter Performance Report</h3>
+    <p>Per-inverter observation counts, average power, average error, abnormal rate and health indicator.</p>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('visualization') }}">View Inverter Comparison</a>
+  </div>
+
+</div>
+
+<section class="section" style="margin-top:36px;">
+  <div class="card" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+    <div>
+      <h3 style="margin-bottom:4px;">Download full prediction output</h3>
+      <p style="margin:0;">Complete <code>predictions.csv</code> including PREDICTED_AC_POWER, ABS_ERROR, RELATIVE_ERROR and STATUS for every observation.</p>
+    </div>
+    <a class="btn btn-gold" href="{{ url_for('download_predictions') }}" download>Download CSV</a>
+  </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Preprocessing — Solar Sense{% endblock %}
+{% block content %}
+
+<div class="section-head">
+  <div>
+    <p class="eyebrow">Pipeline</p>
+    <h2>Data preprocessing &amp; feature engineering</h2>
+  </div>
+</div>
+
+<section class="section">
+  <div class="stepper card-flat">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body"><h4>Raw dataset validation</h4><p>Load the 11-column plant/weather CSV, verify schema and parse <code>DATE_TIME</code>.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body"><h4>Duplicate &amp; missing value check</h4><p>Row-level duplicate detection and per-column null counts, reported on the Dataset page.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body"><h4>Timestamp feature engineering</h4><p><code>DATE_TIME</code> is never fed to the model directly. It is decomposed into <code>HOUR</code>, <code>DAY_OF_YEAR</code>, <code>MONTH</code>, <code>DAY_OF_WEEK</code>, plus cyclical <code>SIN_HOUR</code>/<code>COS_HOUR</code> and <code>SIN_DAY_OF_YEAR</code>/<code>COS_DAY_OF_YEAR</code> encodings.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body"><h4>Categorical encoding</h4><p><code>INVERTER_ID</code> is label-encoded into <code>INVERTER_ID_ENC</code> using a mapping saved with the trained model, so the same inverter always maps to the same code at prediction time.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body"><h4>Feature selection</h4><p><code>PLANT_ID</code> and <code>WEATHER_SENSOR_ID</code> are excluded &mdash; both are constant in this dataset and carry no predictive signal.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body"><h4>Chronological train/test split</h4><p>Rows are sorted by time; the earliest ~80% train the model, the most recent ~20% validate it &mdash; avoiding the temporal leakage a random split would cause.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body"><h4>Model training</h4><p>Four regression candidates are trained on the primary feature set; the lowest-RMSE model on the validation split is selected and persisted.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Primary model features</h3>
+      <p>Environmental + temporal + inverter context. Used for the main AC_POWER prediction.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        {% if config %}{% for f in config.primary_features %}<span class="pill mono">{{ f }}</span>{% endfor %}{% else %}<p class="muted">Not available &mdash; train the model.</p>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <h3>Excluded / metadata features</h3>
+      <p>Constant across the dataset, displayed as context but not used as ML inputs.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="pill mono">PLANT_ID</span>
+        <span class="pill mono">WEATHER_SENSOR_ID</span>
+      </div>
+      <h3 style="margin-top:18px;">Derived analytics features</h3>
+      <p>Computed for diagnostics/visualization only &mdash; not fed into the primary model.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="pill mono">TEMP_DELTA</span>
+        <span class="pill mono">AC_DC_RATIO</span>
+        <span class="pill mono">POWER_PER_IRRADIATION</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if config %}
+<section class="section">
+  <div class="section-head"><h2>Train / test split</h2></div>
+  <div class="grid grid-4">
+    <div class="card kpi-card"><span class="kpi-label">Method</span><span class="kpi-value" style="font-size:1.1rem;">Chronological</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Training Rows</span><span class="kpi-value gold">{{ "{:,}".format(config.split_info.train_rows) }}</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Validation Rows</span><span class="kpi-value">{{ "{:,}".format(config.split_info.test_rows) }}</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Test Fraction</span><span class="kpi-value">{{ (config.split_info.test_fraction * 100) | round(0) }}%</span></div>
+  </div>
+  <p class="muted" style="margin-top:12px;">Training window: {{ config.split_info.train_start }} &rarr; {{ config.split_info.train_end }} &middot; Validation window: {{ config.split_info.test_start }} &rarr; {{ config.split_info.test_end }}</p>
+</section>
+{% endif %}
+
+{% endblock %}

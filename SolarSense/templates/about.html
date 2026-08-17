@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}About — Solar Sense{% endblock %}
+{% block content %}
+
+<div class="section-head"><div><p class="eyebrow">About</p><h2>What is Solar Sense?</h2></div></div>
+
+<section class="section">
+  <div class="card">
+    <p style="font-size:1.05rem; color:var(--ink-100);">Solar Sense is an AI-based solar power prediction, performance monitoring and anomaly detection system. It predicts expected AC power output from environmental and temporal conditions, then compares the prediction against actual generation to flag inverters operating outside expected bounds.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Problem Statement</h3>
+      <p>Solar plant operators need a way to tell whether an inverter's output is consistent with prevailing irradiation and temperature conditions, without manually inspecting every unit. Raw power readings alone don't reveal whether a drop in output is expected (cloud cover) or abnormal (a fault).</p>
+    </div>
+    <div class="card">
+      <h3>Objectives</h3>
+      <p>Predict AC power from environmental/temporal features, quantify prediction reliability from validation data, and surface plant- and inverter-level anomalies through an interactive dashboard.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h3>ML Methodology</h3>
+    <div class="grid grid-2">
+      <div>
+        <p><b>Target / Class Label:</b> <span class="mono" style="color:var(--gold);">AC_POWER</span> (continuous, predicted via regression)</p>
+        <p><b>Prediction:</b> <span class="mono">PREDICTED_AC_POWER</span>, generated from irradiation, ambient/module temperature, inverter identity and temporal features &mdash; never from actual AC_POWER, avoiding target leakage.</p>
+      </div>
+      <div>
+        <p><b>Anomaly logic:</b> <span class="mono">ABS_ERROR = |AC_POWER − PREDICTED_AC_POWER|</span>, compared to a reliability threshold derived from the percentile of validation-set residuals. Above threshold &rarr; <span class="badge badge-abnormal">ABNORMAL</span>, otherwise <span class="badge badge-normal">NORMAL</span>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Dataset</h3>
+      <p>Plant generation and weather sensor readings at 15-minute resolution: DC/AC power, daily/total yield, ambient and module temperature, and irradiation, across multiple inverters on a single plant.</p>
+    </div>
+    <div class="card">
+      <h3>Technologies</h3>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        {% for t in ["Python","Flask","Jinja2","Pandas","NumPy","Scikit-learn","HTML5","CSS3","JavaScript","Chart.js"] %}
+        <span class="pill">{{ t }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

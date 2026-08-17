@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Visualization — Solar Sense{% endblock %}
+{% block content %}
+
+<div class="section-head">
+  <div>
+    <p class="eyebrow">Analytics</p>
+    <h2>Visualization &amp; exploratory data analysis</h2>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="irradiation">Irradiation</button>
+  <button class="tab-btn" data-tab="predictions">Predictions &amp; Error</button>
+  <button class="tab-btn" data-tab="distributions">Distributions</button>
+  <button class="tab-btn" data-tab="temperature">Temperature</button>
+  <button class="tab-btn" data-tab="inverters">Inverters</button>
+  <button class="tab-btn" data-tab="correlation">Correlation</button>
+</div>
+
+<div class="tab-panel active" data-panel="irradiation">
+  <div class="grid grid-2">
+    <div class="card"><h3>Irradiation vs AC Power</h3><div class="chart-box"><canvas id="irrAcChart"></canvas></div></div>
+    <div class="card"><h3>Irradiation vs Prediction Error</h3><div class="chart-box"><canvas id="irrErrChart"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:18px;">
+    <h3>Daily Solar Generation Profile</h3>
+    <div class="chart-box"><canvas id="profileChart"></canvas></div>
+  </div>
+</div>
+
+<div class="tab-panel" data-panel="predictions">
+  <div class="grid grid-2">
+    <div class="card"><h3>Actual vs Predicted AC Power</h3><div class="chart-box"><canvas id="apChart"></canvas></div></div>
+    <div class="card"><h3>Prediction Error Timeline</h3><div class="chart-box"><canvas id="errChart"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:18px;">
+    <h3>Normal vs Abnormal Distribution</h3>
+    <div class="chart-box short"><canvas id="statusChart"></canvas></div>
+  </div>
+</div>
+
+<div class="tab-panel" data-panel="distributions">
+  <div class="grid grid-2">
+    <div class="card"><h3>AC Power Distribution</h3><div class="chart-box"><canvas id="distAc"></canvas></div></div>
+    <div class="card"><h3>Irradiation Distribution</h3><div class="chart-box"><canvas id="distIrr"></canvas></div></div>
+    <div class="card"><h3>DC Power Distribution</h3><div class="chart-box"><canvas id="distDc"></canvas></div></div>
+    <div class="card"><h3>Ambient Temperature Distribution</h3><div class="chart-box"><canvas id="distAmb"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:18px;"><h3>Module Temperature Distribution</h3><div class="chart-box"><canvas id="distMod"></canvas></div></div>
+</div>
+
+<div class="tab-panel" data-panel="temperature">
+  <div class="grid grid-2">
+    <div class="card"><h3>Ambient Temperature vs AC Power</h3><div class="chart-box"><canvas id="ambAcChart"></canvas></div></div>
+    <div class="card"><h3>Module Temperature vs AC Power</h3><div class="chart-box"><canvas id="modAcChart"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:18px;"><h3>Temperature Delta vs Prediction Error</h3><div class="chart-box"><canvas id="tempDeltaChart"></canvas></div></div>
+</div>
+
+<div class="tab-panel" data-panel="inverters">
+  <div class="card"><h3>Inverter Performance Comparison</h3><div class="chart-box tall"><canvas id="invChart"></canvas></div></div>
+</div>
+
+<div class="tab-panel" data-panel="correlation">
+  <div class="card">
+    <h3>Correlation Heatmap</h3>
+    <div id="heatmap" class="table-wrap"></div>
+  </div>
+  <div class="card" style="margin-top:18px;" id="insightCard"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function scatterOptions(xLabel, yLabel) {
+  return SolarSense.baseChartOptions({
+    scales: {
+      x: { title: { display: true, text: xLabel, color: SolarSense.chartColors.ink }, ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } },
+      y: { title: { display: true, text: yLabel, color: SolarSense.chartColors.ink }, ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } },
+    },
+  });
+}
+
+function histogram(values, bins = 24) {
+  const clean = values.filter(v => v !== null && !isNaN(v));
+  if (!clean.length) return { labels: [], counts: [] };
+  const min = Math.min(...clean), max = Math.max(...clean);
+  const width = (max - min) / bins || 1;
+  const counts = new Array(bins).fill(0);
+  clean.forEach(v => { let idx = Math.floor((v - min) / width); if (idx >= bins) idx = bins - 1; if (idx < 0) idx = 0; counts[idx]++; });
+  const labels = counts.map((_, i) => (min + i * width).toFixed(1));
+  return { labels, counts };
+}
+
+(async function () {
+  const viz = await SolarSense.getJSON("/api/visualization");
+  if (!viz.available || viz.empty) return;
+
+  const sc = viz.irradiation_scatter;
+  const statusColor = s => s === "ABNORMAL" ? SolarSense.chartColors.red : SolarSense.chartColors.green;
+
+  new Chart(document.getElementById("irrAcChart"), {
+    type: "scatter",
+    data: { datasets: [{ label: "Irradiation vs AC Power", data: sc.irradiation.map((x, i) => ({ x, y: sc.ac_power[i] })), backgroundColor: sc.status.map(statusColor), pointRadius: 2.5 }] },
+    options: scatterOptions("Irradiation", "AC Power (kW)"),
+  });
+
+  new Chart(document.getElementById("irrErrChart"), {
+    type: "scatter",
+    data: { datasets: [{ label: "Irradiation vs Error", data: sc.irradiation.map((x, i) => ({ x, y: sc.abs_error[i] })), backgroundColor: sc.status.map(statusColor), pointRadius: 2.5 }] },
+    options: scatterOptions("Irradiation", "Prediction Error (kW)"),
+  });
+
+  const dp = viz.daily_profile;
+  new Chart(document.getElementById("profileChart"), {
+    type: "line",
+    data: { labels: dp.hour.map(h => `${h}:00`), datasets: [
+      { label: "Avg AC Power", data: dp.avg_ac_power, borderColor: SolarSense.chartColors.gold, yAxisID: "y", tension: .25 },
+      { label: "Avg Irradiation", data: dp.avg_irradiation, borderColor: SolarSense.chartColors.blue, yAxisID: "y1", tension: .25 },
+    ] },
+    options: SolarSense.baseChartOptions({ scales: {
+      x: { ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } },
+      y: { position: "left", ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } },
+      y1: { position: "right", ticks: { color: SolarSense.chartColors.ink }, grid: { display: false } },
+    } }),
+  });
+
+  const t = viz.timeline;
+  new Chart(document.getElementById("apChart"), {
+    type: "line",
+    data: { labels: t.labels, datasets: [
+      { label: "Actual", data: t.actual_ac_power, borderColor: SolarSense.chartColors.gold, pointRadius: 0, borderWidth: 1.5 },
+      { label: "Predicted", data: t.predicted_ac_power, borderColor: SolarSense.chartColors.blue, pointRadius: 0, borderWidth: 1.5 },
+    ] },
+    options: SolarSense.baseChartOptions({ scales: { x: { ticks: { display: false }, grid: { display: false } }, y: { ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } } } }),
+  });
+
+  new Chart(document.getElementById("errChart"), {
+    type: "line",
+    data: { labels: t.labels, datasets: [{ label: "Abs Error", data: t.abs_error, borderColor: SolarSense.chartColors.ink, pointRadius: 1.5, pointBackgroundColor: t.status.map(statusColor), borderWidth: 1 }] },
+    options: SolarSense.baseChartOptions({ scales: { x: { ticks: { display: false }, grid: { display: false } }, y: { ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } } } }),
+  });
+
+  const statusCounts = viz.status_counts;
+  new Chart(document.getElementById("statusChart"), {
+    type: "doughnut",
+    data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: Object.keys(statusCounts).map(statusColor) }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: SolarSense.chartColors.ink } } } },
+  });
+
+  const dist = viz.distributions;
+  function drawHist(id, values, color, label) {
+    const h = histogram(values);
+    new Chart(document.getElementById(id), {
+      type: "bar",
+      data: { labels: h.labels, datasets: [{ label, data: h.counts, backgroundColor: color }] },
+      options: SolarSense.baseChartOptions(),
+    });
+  }
+  drawHist("distAc", dist.ac_power, SolarSense.chartColors.gold, "AC Power");
+  drawHist("distIrr", dist.irradiation, SolarSense.chartColors.blue, "Irradiation");
+  drawHist("distDc", dist.dc_power, SolarSense.chartColors.green, "DC Power");
+  drawHist("distAmb", dist.ambient_temperature, SolarSense.chartColors.red, "Ambient Temp");
+  drawHist("distMod", dist.module_temperature, "#c98edb", "Module Temp");
+
+  const ta = viz.temperature_analysis;
+  new Chart(document.getElementById("ambAcChart"), {
+    type: "scatter",
+    data: { datasets: [{ data: ta.ambient_temperature.map((x, i) => ({ x, y: ta.ac_power[i] })), backgroundColor: SolarSense.chartColors.gold, pointRadius: 2.5 }] },
+    options: scatterOptions("Ambient Temperature (\u00b0C)", "AC Power (kW)"),
+  });
+  new Chart(document.getElementById("modAcChart"), {
+    type: "scatter",
+    data: { datasets: [{ data: ta.module_temperature.map((x, i) => ({ x, y: ta.ac_power[i] })), backgroundColor: SolarSense.chartColors.blue, pointRadius: 2.5 }] },
+    options: scatterOptions("Module Temperature (\u00b0C)", "AC Power (kW)"),
+  });
+  new Chart(document.getElementById("tempDeltaChart"), {
+    type: "scatter",
+    data: { datasets: [{ data: ta.temp_delta.map((x, i) => ({ x, y: ta.abs_error[i] })), backgroundColor: SolarSense.chartColors.red, pointRadius: 2.5 }] },
+    options: scatterOptions("Module - Ambient Temp Delta (\u00b0C)", "Prediction Error (kW)"),
+  });
+
+  const inv = await SolarSense.getJSON("/api/inverters");
+  if (inv.available && !inv.empty) {
+    new Chart(document.getElementById("invChart"), {
+      type: "bar",
+      data: { labels: inv.inverters.map(i => i.inverter_id), datasets: [
+        { label: "Avg AC Power", data: inv.inverters.map(i => i.avg_ac_power), backgroundColor: SolarSense.chartColors.gold },
+        { label: "Abnormal Rate %", data: inv.inverters.map(i => i.abnormal_rate), backgroundColor: SolarSense.chartColors.red },
+      ] },
+      options: SolarSense.baseChartOptions(),
+    });
+  }
+
+  const corr = viz.correlation;
+  if (corr && corr.columns.length) {
+    const cols = corr.columns;
+    let html = '<table><thead><tr><th></th>' + cols.map(c => `<th>${c}</th>`).join("") + '</tr></thead><tbody>';
+    corr.matrix.forEach((row, i) => {
+      html += `<tr><th>${cols[i]}</th>` + row.map(v => {
+        const intensity = Math.abs(v);
+        const bg = v >= 0 ? `rgba(52,199,123,${intensity * 0.55})` : `rgba(239,91,78,${intensity * 0.55})`;
+        return `<td style="background:${bg};">${v.toFixed(2)}</td>`;
+      }).join("") + "</tr>";
+    });
+    html += "</tbody></table>";
+    document.getElementById("heatmap").innerHTML = html;
+
+    document.getElementById("insightCard").innerHTML = `
+      <ul class="insight-list">
+        <li>Strongest observed relationship with AC_POWER: <b>${corr.strongest_with_ac_power}</b> (correlation ${corr.strongest_value})</li>
+      </ul>`;
+  }
+})();
+</script>
+{% endblock %}

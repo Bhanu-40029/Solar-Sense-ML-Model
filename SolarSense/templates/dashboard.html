@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Solar Sense{% endblock %}
+{% block content %}
+
+<div class="section-head">
+  <div>
+    <p class="eyebrow">Live Overview</p>
+    <h2>Plant dashboard</h2>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="field">
+    <label for="f_inverter">Inverter</label>
+    <select id="f_inverter"><option value="all">All Inverters</option>{% for inv in inverter_ids %}<option value="{{ inv }}">{{ inv }}</option>{% endfor %}</select>
+  </div>
+  <div class="field">
+    <label for="f_status">Status</label>
+    <select id="f_status"><option value="all">All Status</option><option value="NORMAL">Normal</option><option value="ABNORMAL">Abnormal</option></select>
+  </div>
+  <div class="field"><label for="f_from">Date From</label><input type="date" id="f_from"></div>
+  <div class="field"><label for="f_to">Date To</label><input type="date" id="f_to"></div>
+  <div class="form-actions">
+    <button class="btn btn-gold btn-sm" id="applyFilters">Apply Filters</button>
+    <button class="btn btn-ghost btn-sm" id="resetFilters">Reset Filters</button>
+  </div>
+</div>
+
+<!-- LEVEL 1 KPIs -->
+<section class="section">
+  <div class="grid grid-4" id="kpiLevel1">
+    <div class="card kpi-card"><span class="kpi-label">Actual AC Power (avg)</span><span class="kpi-value gold" data-kpi="actual_ac_power">&hellip;</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Predicted AC Power (avg)</span><span class="kpi-value" data-kpi="predicted_ac_power">&hellip;</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Prediction Error (avg)</span><span class="kpi-value" data-kpi="prediction_error">&hellip;</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Abnormal Events</span><span class="kpi-value red" data-kpi="abnormal_events">&hellip;</span></div>
+  </div>
+</section>
+
+<!-- LEVEL 2 -->
+<section class="section">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Actual vs Predicted AC Power</h3>
+      <div class="chart-box"><canvas id="actualPredictedChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Prediction Error Timeline</h3>
+      <div class="chart-box"><canvas id="errorTimelineChart"></canvas></div>
+    </div>
+  </div>
+  <div class="grid grid-2" style="margin-top:18px;">
+    <div class="card">
+      <h3>Model-Based Plant Health</h3>
+      <p class="muted" style="margin-top:-4px;">Share of NORMAL observations among evaluated predictions &mdash; a prediction-based reliability indicator, not a physical health measurement.</p>
+      <div class="ring-wrap">
+        <div class="ring" id="plantHealthRing"><span class="ring-value" id="plantHealthValue">N/A</span></div>
+        <div>
+          <p style="margin:0;">Total evaluated: <b class="mono" id="plantHealthTotal">&mdash;</b></p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Model Reliability</h3>
+      <div class="grid grid-2">
+        <div class="kpi-card"><span class="kpi-label">Model R&sup2;</span><span class="kpi-value" data-kpi="model_r2">&hellip;</span></div>
+        <div class="kpi-card"><span class="kpi-label">Peak AC Power</span><span class="kpi-value" data-kpi="peak_ac_power">&hellip;</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEVEL 3 -->
+<section class="section">
+  <div class="grid grid-4">
+    <div class="card kpi-card"><span class="kpi-label">Current Irradiation</span><span class="kpi-value" data-kpi="current_irradiation">&hellip;</span></div>
+    <div class="card kpi-card"><span class="kpi-label">Module Temperature</span><span class="kpi-value" data-kpi="module_temperature">&hellip;&deg;C</span></div>
+  </div>
+  <div class="grid grid-2" style="margin-top:18px;">
+    <div class="card">
+      <h3>Daily Solar Generation Profile</h3>
+      <div class="chart-box"><canvas id="dailyProfileChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Inverter Health</h3>
+      <div class="table-wrap" style="max-height:320px; overflow-y:auto;">
+        <table>
+          <thead><tr><th>Inverter</th><th>Obs.</th><th>Avg AC</th><th>Avg Error</th><th>Abnormal %</th><th>Health</th></tr></thead>
+          <tbody id="inverterHealthBody"><tr><td colspan="6" class="table-empty">Loading&hellip;</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEVEL 4 -->
+<section class="section">
+  <div class="section-head">
+    <div>
+      <h2>Abnormal events</h2>
+      <p class="muted" style="margin-top:-6px;">Sorted by absolute error, highest first.</p>
+    </div>
+    <div class="field" style="min-width:220px;"><input type="text" id="anomalySearch" placeholder="Search inverter..."></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Timestamp</th><th>Inverter</th><th>Irradiation</th><th>Actual AC</th><th>Predicted AC</th><th>Abs Error</th><th>Rel Error</th><th>Status</th></tr></thead>
+      <tbody id="anomalyBody"><tr><td colspan="8" class="table-empty">Loading&hellip;</td></tr></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="anomalyPagination"></div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const charts = {};
+
+function getFilters() {
+  return {
+    inverter: document.getElementById("f_inverter").value,
+    status: document.getElementById("f_status").value,
+    date_from: document.getElementById("f_from").value,
+    date_to: document.getElementById("f_to").value,
+  };
+}
+
+function qs(params) {
+  return new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v))).toString();
+}
+
+async function loadKPIs() {
+  const data = await SolarSense.getJSON(`/api/dashboard?${qs(getFilters())}`);
+  if (!data.available || data.empty) {
+    document.querySelectorAll("[data-kpi]").forEach(el => el.textContent = "N/A");
+    document.getElementById("plantHealthValue").textContent = "N/A";
+    return;
+  }
+  const k = data.kpis;
+  document.querySelector('[data-kpi="actual_ac_power"]').textContent = SolarSense.fmt(k.actual_ac_power);
+  document.querySelector('[data-kpi="predicted_ac_power"]').textContent = SolarSense.fmt(k.predicted_ac_power);
+  document.querySelector('[data-kpi="prediction_error"]').textContent = SolarSense.fmt(k.prediction_error);
+  document.querySelector('[data-kpi="abnormal_events"]').textContent = SolarSense.fmt(k.abnormal_events, 0);
+  document.querySelector('[data-kpi="current_irradiation"]').textContent = SolarSense.fmt(k.current_irradiation, 4);
+  document.querySelector('[data-kpi="module_temperature"]').innerHTML = SolarSense.fmt(k.module_temperature) + "&deg;C";
+  document.querySelector('[data-kpi="peak_ac_power"]').textContent = SolarSense.fmt(k.peak_ac_power);
+  document.querySelector('[data-kpi="model_r2"]').textContent = k.model_r2 !== null ? k.model_r2.toFixed(4) : "N/A";
+
+  const health = k.plant_health;
+  const ring = document.getElementById("plantHealthRing");
+  const val = document.getElementById("plantHealthValue");
+  if (health === null || health === undefined) {
+    val.textContent = "N/A";
+    ring.style.background = "conic-gradient(var(--navy-700) 0deg, var(--navy-700) 360deg)";
+  } else {
+    val.textContent = health + "%";
+    const deg = (health / 100) * 360;
+    const color = health >= 90 ? "var(--green)" : health >= 75 ? "var(--amber)" : "var(--red)";
+    ring.style.background = `conic-gradient(${color} ${deg}deg, var(--navy-700) ${deg}deg)`;
+  }
+  document.getElementById("plantHealthTotal").textContent = k.total_records.toLocaleString();
+}
+
+async function loadCharts() {
+  const data = await SolarSense.getJSON(`/api/visualization?${qs(getFilters())}`);
+  if (!data.available || data.empty) return;
+
+  const t = data.timeline;
+  if (charts.ap) charts.ap.destroy();
+  charts.ap = new Chart(document.getElementById("actualPredictedChart"), {
+    type: "line",
+    data: {
+      labels: t.labels,
+      datasets: [
+        { label: "Actual AC Power", data: t.actual_ac_power, borderColor: SolarSense.chartColors.gold, borderWidth: 1.5, pointRadius: 0, tension: 0.15 },
+        { label: "Predicted AC Power", data: t.predicted_ac_power, borderColor: SolarSense.chartColors.blue, borderWidth: 1.5, pointRadius: 0, tension: 0.15 },
+      ],
+    },
+    options: SolarSense.baseChartOptions({ scales: { x: { ticks: { display: false }, grid: { display: false } }, y: { ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } } } }),
+  });
+
+  if (charts.err) charts.err.destroy();
+  const pointColors = t.status.map(s => s === "ABNORMAL" ? SolarSense.chartColors.red : SolarSense.chartColors.green);
+  charts.err = new Chart(document.getElementById("errorTimelineChart"), {
+    type: "line",
+    data: {
+      labels: t.labels,
+      datasets: [{ label: "Absolute Error", data: t.abs_error, borderColor: SolarSense.chartColors.ink, borderWidth: 1, pointRadius: 1.5, pointBackgroundColor: pointColors, tension: 0.1 }],
+    },
+    options: SolarSense.baseChartOptions({ scales: { x: { ticks: { display: false }, grid: { display: false } }, y: { ticks: { color: SolarSense.chartColors.ink }, grid: { color: SolarSense.chartColors.grid } } } }),
+  });
+
+  const dp = data.daily_profile;
+  if (charts.daily) charts.daily.destroy();
+  charts.daily = new Chart(document.getElementById("dailyProfileChart"), {
+    type: "bar",
+    data: {
+      labels: dp.hour.map(h => `${h}:00`),
+      datasets: [{ label: "Avg AC Power", data: dp.avg_ac_power, backgroundColor: SolarSense.chartColors.gold }],
+    },
+    options: SolarSense.baseChartOptions(),
+  });
+}
+
+async function loadInverterHealth() {
+  const body = document.getElementById("inverterHealthBody");
+  const params = getFilters();
+  const data = await SolarSense.getJSON(`/api/inverters?${qs({ status: params.status, date_from: params.date_from, date_to: params.date_to })}`);
+  if (!data.available || data.empty) { body.innerHTML = `<tr><td colspan="6" class="table-empty">No data available.</td></tr>`; return; }
+  body.innerHTML = data.inverters.map(inv => `
+    <tr>
+      <td class="mono">${inv.inverter_id}</td>
+      <td>${inv.observations.toLocaleString()}</td>
+      <td>${SolarSense.fmt(inv.avg_ac_power)}</td>
+      <td>${SolarSense.fmt(inv.avg_error)}</td>
+      <td>${SolarSense.fmt(inv.abnormal_rate)}%</td>
+      <td>${SolarSense.fmt(inv.health)}%</td>
+    </tr>`).join("");
+}
+
+let anomalyPage = 1;
+async function loadAnomalies() {
+  const body = document.getElementById("anomalyBody");
+  const pagination = document.getElementById("anomalyPagination");
+  const search = document.getElementById("anomalySearch").value.trim();
+  const params = getFilters();
+  const data = await SolarSense.getJSON(`/api/anomalies?${qs({ inverter: params.inverter, date_from: params.date_from, date_to: params.date_to, search, page: anomalyPage, page_size: 12 })}`);
+  if (!data.available) { body.innerHTML = `<tr><td colspan="8" class="table-empty">No data available.</td></tr>`; return; }
+  if (data.total === 0) { body.innerHTML = `<tr><td colspan="8" class="table-empty">No abnormal observations found for the selected filters.</td></tr>`; pagination.innerHTML = ""; return; }
+
+  body.innerHTML = data.events.map(e => `
+    <tr>
+      <td class="mono">${e.DATE_TIME}</td>
+      <td class="mono">${e.INVERTER_ID}</td>
+      <td>${SolarSense.fmt(e.IRRADIATION, 4)}</td>
+      <td>${SolarSense.fmt(e.AC_POWER)}</td>
+      <td>${SolarSense.fmt(e.PREDICTED_AC_POWER)}</td>
+      <td>${SolarSense.fmt(e.ABS_ERROR)}</td>
+      <td>${e.RELATIVE_ERROR !== null ? SolarSense.fmt(e.RELATIVE_ERROR * 100) + "%" : "N/A"}</td>
+      <td>${SolarSense.statusBadge(e.STATUS)}</td>
+    </tr>`).join("");
+
+  const totalPages = Math.max(1, Math.ceil(data.total / data.page_size));
+  pagination.innerHTML = `
+    <button class="btn btn-ghost btn-sm" id="anomPrev" ${anomalyPage <= 1 ? "disabled" : ""}>Previous</button>
+    <span>Page ${anomalyPage} of ${totalPages} &middot; ${data.total.toLocaleString()} abnormal events</span>
+    <button class="btn btn-ghost btn-sm" id="anomNext" ${anomalyPage >= totalPages ? "disabled" : ""}>Next</button>`;
+  document.getElementById("anomPrev")?.addEventListener("click", () => { anomalyPage--; loadAnomalies(); });
+  document.getElementById("anomNext")?.addEventListener("click", () => { anomalyPage++; loadAnomalies(); });
+}
+
+function refreshAll() {
+  anomalyPage = 1;
+  loadKPIs(); loadCharts(); loadInverterHealth(); loadAnomalies();
+}
+
+document.getElementById("applyFilters").addEventListener("click", refreshAll);
+document.getElementById("resetFilters").addEventListener("click", () => {
+  document.getElementById("f_inverter").value = "all";
+  document.getElementById("f_status").value = "all";
+  document.getElementById("f_from").value = "";
+  document.getElementById("f_to").value = "";
+  refreshAll();
+});
+let searchDebounce;
+document.getElementById("anomalySearch").addEventListener("input", () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => { anomalyPage = 1; loadAnomalies(); }, 300);
+});
+
+refreshAll();
+</script>
+{% endblock %}
