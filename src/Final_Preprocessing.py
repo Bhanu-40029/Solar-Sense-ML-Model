@@ -14,21 +14,14 @@ from sklearn.preprocessing import OneHotEncoder
 # ============================================================
 
 input_path = (
-    "D:/2nd Year/ML Solor Sense/Datasets/"
-    "SolarSense_Cleaned_Data.csv"
+    "D:/2nd Year/ML Solor Sense/Datasets/SolarSense_Cleaned_Data.csv"
 )
 
-output_folder = (
-    "D:/2nd Year/ML Solor Sense/Datasets"
-)
+output_folder = ("D:/2nd Year/ML Solor Sense/Datasets")
 
 os.makedirs(output_folder, exist_ok=True)
 
-final_output_path = (
-    "D:/2nd Year/ML Solor Sense/Datasets/"
-    "SolarSense_Final_Preprocessed_Data.csv"
-)
-
+final_output_path = ("D:/2nd Year/ML Solor Sense/Datasets/SolarSense_Final_Preprocessed_Data.csv")
 
 # ============================================================
 # 2. LOAD CLEANED DATASET
@@ -54,12 +47,9 @@ print("=" * 70)
 
 datatype_table = pd.DataFrame({
     "Column": df.columns,
-    "Data Type": df.dtypes.astype(str).values
-})
+    "Data Type": df.dtypes.astype(str).values})
 
-print(
-    datatype_table.to_string(index=False)
-)
+print(datatype_table.to_string(index=False))
 
 
 # ============================================================
