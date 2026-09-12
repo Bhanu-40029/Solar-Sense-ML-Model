@@ -7,6 +7,8 @@ SolarSense is a solar power monitoring and machine-learning platform.
 
 Current responsibilities of this Flask application:
 
+
+
     1. Render frontend pages
     2. Provide frontend API endpoints
     3. Read the SolarSense dataset
